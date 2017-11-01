@@ -56,7 +56,9 @@ func objToString(obj *C.PyObject) (string, error) {
 
 // raise 'solutions.SolutionError' exception
 func raiseString(text string) {
-	C.PyErr_SetString(C.SolutionError, C.CString(text))
+	textPtr := C.CString(text)
+	defer C.free(unsafe.Pointer(textPtr))
+	C.PyErr_SetString(C.SolutionError, textPtr)
 }
 
 //export solutions_SolutionInit
@@ -66,6 +68,7 @@ func solutions_SolutionInit(self *C.solutions_SolutionObj, args, kwds *C.PyObjec
 		raiseString("expected one string argument")
 		return -1
 	}
+	defer C.free(unsafe.Pointer(pathRaw))
 
 	s, err := solutions.OpenSolution(C.GoString(pathRaw))
 	if err != nil {
@@ -131,7 +134,11 @@ func solutions_Solution_GenerateRunSequence(self *C.solutions_SolutionObj, nsArg
 		for field := 0; field < refV.NumField(); field++ {
 			fieldName := refV.Type().Field(field).Name
 			fieldValue := refV.Field(field).String()
-			code := C.PyDict_SetItemString(dict, C.CString(fieldName), C.Py_BuildString(C.CString(fieldValue)))
+			fieldNamePtr := C.CString(fieldName)
+			fieldValuePtr := C.CString(fieldValue)
+			code := C.PyDict_SetItemString(dict, fieldNamePtr, C.Py_BuildString(fieldValuePtr))
+			C.free(unsafe.Pointer(fieldNamePtr))
+			C.free(unsafe.Pointer(fieldValuePtr))
 			if code == -1 {
 				raiseString("error putting to " + fieldName)
 				return nil
@@ -151,6 +158,8 @@ func solutions_Solution_SetValue(self *C.solutions_SolutionObj, args *C.PyObject
 		raiseString("expected two string arguments")
 		return nil
 	}
+	defer C.free(unsafe.Pointer(keyRaw))
+	defer C.free(unsafe.Pointer(valueRaw))
 	key, value := C.GoString(keyRaw), C.GoString(valueRaw)
 
 	objMap.mu.Lock()
