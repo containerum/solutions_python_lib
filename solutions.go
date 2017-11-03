@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"path"
 	"strings"
@@ -17,8 +18,13 @@ import (
 )
 
 const SolutionConfigFile = ".containerum.json"
-const NamespaceSelectorKey = "NS_SELECTOR"
-const NamespaceKey = "NS"
+
+// Automatically filled variables
+const (
+	NamespaceSelectorKey = "NS_SELECTOR"
+	NamespaceKey         = "NS"
+	VolumeKey            = "VOLUME"
+)
 
 type SolutionConfig struct {
 	Env map[string]interface{} `json:"env"`
@@ -104,6 +110,9 @@ func (s *Solution) GenerateRunSequence(namespace string) (ret []SolutionSequence
 
 	env[NamespaceKey] = namespace
 	env[NamespaceSelectorKey] = NamespaceSelector(namespace)
+	if _, set := env[VolumeKey]; !set { // use default volume name format if volume name not specified
+		env[VolumeKey] = fmt.Sprintf("%s-default", namespace)
+	}
 
 	for _, v := range s.config.Run {
 		cfg, err := ioutil.ReadFile(path.Join(s.dir, v.ConfigFile))
