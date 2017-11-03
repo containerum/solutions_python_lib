@@ -12,7 +12,7 @@ func init() {
 	rand.Seed(time.Now().Unix())
 }
 
-const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+const letterBytes = "abcdefghijklmnopqrstuvwxyz0123456789"
 
 var templateFunctions = template.FuncMap{
 	"rand_string": randString,
