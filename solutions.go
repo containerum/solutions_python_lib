@@ -111,7 +111,7 @@ func (s *Solution) GenerateRunSequence(namespace string) (ret []SolutionSequence
 	env[NamespaceKey] = namespace
 	env[NamespaceSelectorKey] = NamespaceSelector(namespace)
 	if _, set := env[VolumeKey]; !set { // use default volume name format if volume name not specified
-		env[VolumeKey] = fmt.Sprintf("%s-default", namespace)
+		env[VolumeKey] = fmt.Sprintf("%s-volume", namespace)
 	}
 
 	for _, v := range s.config.Run {
