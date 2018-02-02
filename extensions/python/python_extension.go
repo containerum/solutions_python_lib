@@ -14,6 +14,7 @@ typedef struct {
 
 int PyArg_ParseTuple_S(PyObject * args, char ** arg);
 int PyArg_ParseTuple_SS(PyObject * args, char ** key, char ** value);
+int PyArg_MyArgsParsing(PyObject *args, char **content, char **user, char **label, char **branch);
 void Py_decref(PyObject *obj);
 void Py_incref(PyObject *obj);
 PyObject *Py_BuildEmpty(); // value to return if method not produces useful value
@@ -63,14 +64,14 @@ func raiseString(text string) {
 
 //export solutions_SolutionInit
 func solutions_SolutionInit(self *C.solutions_SolutionObj, args, kwds *C.PyObject) int {
-	var pathRaw *C.char
-	if C.PyArg_ParseTuple_S(args, &pathRaw) == -1 {
-		raiseString("expected one string argument")
+	var contentRaw, userRaw, labelRaw, branchRaw *C.char
+	if C.PyArg_MyArgsParsing(args, &contentRaw, &userRaw, &labelRaw, &branchRaw) == -1 {
+		raiseString("Args parsing error")
 		return -1
 	}
-	defer C.free(unsafe.Pointer(pathRaw))
 
-	s, err := solutions.OpenSolution(C.GoString(pathRaw))
+	content, user, label, branch := C.GoString(contentRaw), C.GoString(userRaw), C.GoString(labelRaw), C.GoString(branchRaw)
+	s, err := solutions.OpenSolution(content, user, label, branch)
 	if err != nil {
 		raiseString("open solution: " + err.Error())
 		return -1
@@ -91,7 +92,6 @@ func solutions_SolutionDealloc(self *C.solutions_SolutionObj) {
 	objMap.mu.Lock()
 	objMap.mp[uint64(self.objId)] = nil
 	objMap.mu.Unlock()
-	C.PyMem_Free(unsafe.Pointer(self))
 }
 
 //export solutions_Solution_GenerateRunSequence
@@ -158,8 +158,6 @@ func solutions_Solution_SetValue(self *C.solutions_SolutionObj, args *C.PyObject
 		raiseString("expected two string arguments")
 		return nil
 	}
-	defer C.free(unsafe.Pointer(keyRaw))
-	defer C.free(unsafe.Pointer(valueRaw))
 	key, value := C.GoString(keyRaw), C.GoString(valueRaw)
 
 	objMap.mu.Lock()

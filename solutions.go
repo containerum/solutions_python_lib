@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"path"
 	"strings"
 	"text/template"
 
@@ -15,9 +14,8 @@ import (
 
 	"github.com/tdewolff/minify"
 	jmin "github.com/tdewolff/minify/json"
+	"net/http"
 )
-
-const SolutionConfigFile = ".containerum.json"
 
 // Automatically filled variables
 const (
@@ -36,7 +34,9 @@ type SolutionConfig struct {
 
 type Solution struct {
 	config *SolutionConfig
-	dir    string
+	user string
+	label string
+	branch string
 	tmpl   *template.Template
 	mu     *sync.Mutex
 }
@@ -46,12 +46,7 @@ type SolutionSequencePart struct {
 	Config string
 }
 
-func OpenSolution(solutionPath string) (*Solution, error) {
-	content, err := ioutil.ReadFile(path.Join(solutionPath, SolutionConfigFile))
-	if err != nil {
-		return nil, errors.New("cannot open solution config: " + err.Error())
-	}
-
+func OpenSolution(content string, user string, label string, branch string) (*Solution, error) {
 	tmpl := template.New("solution").Funcs(templateFunctions)
 	t, err := tmpl.Parse(string(content))
 	if err != nil {
@@ -69,8 +64,10 @@ func OpenSolution(solutionPath string) (*Solution, error) {
 
 	return &Solution{
 		config: &config,
-		dir:    solutionPath,
 		tmpl:   tmpl,
+		user: user,
+		label: label,
+		branch: branch,
 		mu:     &sync.Mutex{},
 	}, err
 }
@@ -115,14 +112,24 @@ func (s *Solution) GenerateRunSequence(namespace string) (ret []SolutionSequence
 	}
 
 	for _, v := range s.config.Run {
-		cfg, err := ioutil.ReadFile(path.Join(s.dir, v.ConfigFile))
+		resp, err := http.Get(fmt.Sprintf("https://raw.githubusercontent.com/%s/%s/%s/%s", s.user, s.label, s.branch, v.ConfigFile))
+		if err != nil {
+			errs = append(errs, err.Error())
+			continue
+		}
+		if resp.StatusCode != http.StatusOK {
+			errs = append(errs, fmt.Errorf(resp.Status).Error())
+			continue
+		}
+
+		content, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
 			errs = append(errs, err.Error())
 			continue
 		}
 
 		s.mu.Lock()
-		tmpl, err := s.tmpl.Parse(string(cfg))
+		tmpl, err := s.tmpl.Parse(string(content))
 		if err != nil {
 			errs = append(errs, err.Error())
 			continue
