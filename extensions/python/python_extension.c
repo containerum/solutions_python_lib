@@ -49,6 +49,10 @@ int PyArg_ParseTuple_SS(PyObject * args, char ** key, char ** value) {
     return PyArg_ParseTuple(args, "ss", key, value);
 }
 
+int PyArg_MyArgsParsing(PyObject *args, char **content, char **user, char **label, char **branch){
+	return PyArg_ParseTuple(args, "ssss", content, user, label, branch);
+};
+
 PyObject *Py_BuildString(char * string) {
 	return Py_BuildValue("s", string);
 }
